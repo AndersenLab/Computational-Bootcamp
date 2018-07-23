@@ -1,4 +1,10 @@
 library(tidyverse)
+library(rlang)
+
+# generate data using:
+# bcftools query --samples CB4856,CX11314,DL238,ED3017,EG4725,JT11398,JU258,JU775,LKC34,MY16,MY23,N2 WI.20180510.soft-filter.vcf.gz -f '[%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t%FILTER\t%AC\t%AF\t%SAMPLE\t%GT\t%DP\t%FT\t%AD\n]' > Soft_Filter_Training.tsv
+# awk '$2 > 1e6 && $2 < 2e6 { print }' Soft_Filter_Training.tsv > subset_Soft_Filter_Training.tsv
+
 
 # set working directory
 working.dir <- '~/AndersenLab/Github_Repos/Computational-Bootcamp/'
@@ -120,24 +126,95 @@ geno_matrix <- indel_snv_variants %>%
   dplyr::select(marker, strain, GT) %>%
   dplyr::distinct(marker, strain, .keep_all = T) %>% 
   tidyr::spread(strain, GT) %>%
+  dplyr::filter_all(all_vars(. != "./."))
   
+# what strains are most similar to each other?
 
+geno_matrix[geno_matrix == "0/0"] <- 0
+geno_matrix[geno_matrix == "1/1"] <- 1
 
+geno_pc_input <- geno_matrix %>%
+  modify_at(c(2:ncol(geno_matrix)), as.numeric) %>%
+  dplyr::select(-marker)
 
+pc_results <- prcomp(t(geno_pc_input))
 
+pc_df <- data.frame(strain = row.names(pc_results$x), pc_results$x)
 
-
-
+ggplot(pc_df) +
+  aes(x = PC1, y = PC2) +
+  geom_point() +
+  ggrepel::geom_label_repel(aes(label=strain)) +
+  theme_bw(15)
 
 # what strains have the most variants?
+
+# facetted
+indel_snv_variants %>%
+  dplyr::filter(GT != "./.", GT != "0/0") %>%
+  dplyr::group_by(strain, variant_type) %>%
+  dplyr::summarise(n_v = n()) %>%
+  dplyr::ungroup() %>%
+  dplyr::arrange(variant_type, n_v) %>%
+  dplyr::mutate(strain_f = factor(strain, 
+                                     levels = unique(strain), 
+                                     labels = unique(strain))) %>%
+  ggplot() +
+  aes(x = strain_f, y = n_v) +
+  geom_bar(stat="identity")+
+  facet_grid(variant_type~., scale = "free") +
+  labs(x = "Strain", y = "Count") +
+  theme_bw(15)
+
+# stacked bar
+indel_snv_variants %>%
+  dplyr::filter(GT != "./.", GT != "0/0") %>%
+  dplyr::group_by(strain, variant_type) %>%
+  dplyr::summarise(n_v = n()) %>%
+  dplyr::group_by(strain) %>%
+  dplyr::mutate(tot_var = sum(n_v)) %>%
+  dplyr::arrange(tot_var) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(strain_f = factor(strain, 
+                                  levels = unique(strain), 
+                                  labels = unique(strain))) %>%
+  ggplot() +
+  aes(x = strain_f, y = n_v, fill = variant_type) +
+  geom_bar(stat="identity", color = "black")+
+  scale_fill_manual(values = c("hotpink3", "gray50"), name = "Variant\nType") +
+  labs(x = "Strain", y = "Count") +
+  theme_bw(15)
+
+
 # what chromosome has the most variation?
-# what strains are most similar to each other?
+# what is the correlation between SNV and indel ct?
 # how many transition vs transversion variants are there?
 # what do the distribution of ALT calls for each strain?
 
 
 
 
+create_mapper_gt <- function(.p){
+  glue::glue("~ ({f_text(.p)})") %>% 
+    as.formula() %>%
+    as_mapper()
+}
 
+create_mapper_gt(~ .x == "0/0")
 
+gt_fix <- function(vec, .p) {
+  modify_if(vec, create_mapper_gt(.p) , ~ 0) %>% 
+    reduce(c)
+}
 
+geno_matrix$CB4856[1:10]
+
+gt_fix(geno_matrix$CB4856[1:10], ~ .x == "0/0")
+
+gt_fix_df <- function(tbl, .p) {
+  map_df(tbl, ~ gt_fix(.x, .p) )
+} 
+
+geno_matrix[1:10,]
+
+gt_fix_df(geno_matrix[1:10,], ~ .x == "0/0")
