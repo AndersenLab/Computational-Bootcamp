@@ -7,19 +7,21 @@ library(rlang)
 
 
 # set working directory
-working.dir <- '~/AndersenLab/Github_Repos/Computational-Bootcamp/'
+working.dir <- '~/github_repos/Computational-Bootcamp/'
 setwd(working.dir)
 
 # load data
-genomics_data <- readr::read_tsv(glue::glue("{working.dir}/Data/subset_Soft_Filter_Training.tsv"),
+genomics_data <- readr::read_tsv(glue::glue("{working.dir}/Data/subset_Soft_Filter_Training.tsv.gz"),
                                  col_names = F)
 
-# make column names
+# add column names
 colnames(genomics_data) <- c("chrom", "pos", "ref", "alt", "qual", "variant_filter", "allele_ct", "allele_freq", "strain", "genotype", "depth", "strain_filter", "allele_depth")
 
-# 
+# inspect data
 head(genomics_data)
+str(genomics_data)
 
+# generate a smaller data set for faster processing
 smaller_data <- dplyr::filter(genomics_data, chrom %in% c("IV","V"))
 
 dir.create("Processed_Data")
@@ -107,7 +109,7 @@ indel_snv_variants %>%
   dplyr::distinct(chrom, pos, ref, alt, .keep_all = T) %>%
   group_by(variant_type) %>%
   dplyr::summarise(variant_ct = n())
-  
+
 # plot depth per strain by variant type
 
 ggplot(indel_snv_variants) +
@@ -127,7 +129,7 @@ geno_matrix <- indel_snv_variants %>%
   dplyr::distinct(marker, strain, .keep_all = T) %>% 
   tidyr::spread(strain, GT) %>%
   dplyr::filter_all(all_vars(. != "./."))
-  
+
 # what strains are most similar to each other?
 
 geno_matrix[geno_matrix == "0/0"] <- 0
@@ -157,8 +159,8 @@ indel_snv_variants %>%
   dplyr::ungroup() %>%
   dplyr::arrange(variant_type, n_v) %>%
   dplyr::mutate(strain_f = factor(strain, 
-                                     levels = unique(strain), 
-                                     labels = unique(strain))) %>%
+                                  levels = unique(strain), 
+                                  labels = unique(strain))) %>%
   ggplot() +
   aes(x = strain_f, y = n_v) +
   geom_bar(stat="identity")+
@@ -187,18 +189,80 @@ indel_snv_variants %>%
 
 
 # what chromosome has the most variation?
+
+indel_snv_variants %>%
+  dplyr::filter(GT != "./.", GT != "0/0") %>%
+  dplyr::distinct(chrom, pos, ref, alt, .keep_all = T) %>%
+  dplyr::group_by(chrom) %>%
+  dplyr::summarise(ct = n())
+
 # what is the correlation between SNV and indel ct?
-# how many transition vs transversion variants are there?
+
+indel_snv_variants %>%
+  dplyr::filter(GT != "./.", GT != "0/0") %>%
+  dplyr::group_by(strain, variant_type) %>%
+  dplyr::summarise(n_v = n()) %>%
+  dplyr::group_by(strain) %>%
+  tidyr::spread(variant_type, n_v) %>%
+  ggplot() +
+  aes(x = SNV, y = indel)+
+  geom_point() +
+  theme_bw(15) +
+  ggrepel::geom_label_repel(aes(label=strain)) +
+  labs(x = "SNV Count", y = "Indel Count")
+
+# add linear model equation on plot
+
+snv_indel_cts <- indel_snv_variants %>%
+  dplyr::filter(GT != "./.", GT != "0/0") %>%
+  dplyr::group_by(strain, variant_type) %>%
+  dplyr::summarise(n_v = n()) %>%
+  dplyr::group_by(strain) %>%
+  tidyr::spread(variant_type, n_v) %>%
+  na.omit()
+
+mod <- lm(indel~SNV,data=snv_indel_cts)
+s_i_eq <- transform(snv_indel_cts, Fitted = fitted(mod))
+eq <- substitute(italic(r)~"="~rvalue*","~italic(p)~"="~pvalue, 
+                 list(rvalue = sprintf("%.2f",sign(coef(mod)[2])*sqrt(summary(mod)$r.squared)), 
+                      pvalue = format(summary(mod)$coefficients[2,4], digits = 3)))
+
+dftext <- data.frame(SNV = 1000, indel = 750, eq = as.character(as.expression(eq)))
+
+
+ggplot(snv_indel_cts) +
+  aes(x = SNV, y = indel)+
+  geom_point() +
+  theme_bw(15) +
+  ggrepel::geom_label_repel(aes(label=strain)) +
+  labs(x = "SNV Count", y = "Indel Count") +
+  geom_text(aes(label = eq), data = dftext, parse = TRUE, size  = 6)
+
 # what do the distribution of ALT calls for each strain?
 
+indel_snv_variants %>%
+  dplyr::filter(GT != "./.", GT != "0/0") %>%
+  ggplot() +
+  aes(x = pos/1e6, y = strain, color = variant_type, size = variant_type) +
+  geom_point() +
+  scale_color_manual(values = c("red", "black"), name = "Variant\nType") +
+  scale_size_manual(values = c(0.3, 0.1), name = "Variant\nType") +
+  facet_grid(chrom~.) +
+  theme_bw(15)
 
+# what variants are unique to a given strain?
 
+# how many transition vs transversion variants are there?
 
-create_mapper_gt <- function(.p){
-  glue::glue("~ ({f_text(.p)})") %>% 
-    as.formula() %>%
-    as_mapper()
-}
+  
+  
+  
+  
+  create_mapper_gt <- function(.p){
+    glue::glue("~ ({f_text(.p)})") %>% 
+      as.formula() %>%
+      as_mapper()
+  }
 
 create_mapper_gt(~ .x == "0/0")
 
