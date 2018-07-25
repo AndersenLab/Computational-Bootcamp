@@ -1,0 +1,222 @@
+---
+title: "analyze_genomics"
+output: html_document
+---
+
+# Packages
+
+Download packages you will be using for the analysis!
+
+```{r, setup}
+# install dplyr, readr, tidyr, ggplot2
+# You can comment this out before knitting!
+
+
+# load all your packages
+
+
+```
+
+# Load data
+
+Load the genomics data that you downloaded from https://github.com/AndersenLab/Computational-Bootcamp/blob/master/Data/subset_Soft_Filter_Training.tsv.gz
+
+```{r, load_data}
+
+# load data using function readr::read_tsv()
+# don't know how to use read_tsv? TRY: ?read_tsv
+# save as new variable 'genomics_data'
+
+
+
+# View your data
+# You can comment this out before knitting!
+
+
+
+# load data again, using colnames = F
+
+
+
+# add a vector of column names using the function colnames()
+
+
+
+
+# inspect data using 'head()' and 'str()'
+# You can comment this out before knitting!
+
+
+
+
+
+```
+
+# Process data
+
+Create a smaller dataframe to work with.
+
+```{r, process_data}
+
+# generate a smaller data set for faster processing
+# use dplyr::filter() to keep only chromosomes IV and V
+# assign this to a new variable, 'smaller_data'
+
+
+
+# Save smaller dataframe as an .Rda file using function save()
+
+
+
+# Remove 'genomics_data' from workspace
+
+
+
+```
+
+# Analyze data
+
+Analyze the data by counting the number of strains and removing some variants.
+
+```{r, analyze_data}
+
+# how many strains do we have in the data set?
+# HINT: try using the functions: length() and unique()
+
+
+
+# remove variants that have high levels of heterozygosity
+# HINT: look at the unique values of the variant_filter column
+# Assign this to a new variable, 'no_het_variants'
+
+
+
+
+
+
+
+# remove multi-allelic variants
+# Multi-allelic variants can be identified by having a "," (e.g. C,T or AG,TC) in the 'alt' column
+# HINT: try ?grepl() to learn how to match a pattern in a string instead of the whole string
+# Assign this to a new variable, 'no_comma'
+
+
+
+
+# Use the pipe (%>%) to combine steps with dplyr!
+# Assign this to a new variable, 'biallelic_variants'
+
+
+
+
+
+# Compare 'biallelic_variants' with 'no_comma'
+
+
+
+# Keep piping to add multiple steps!
+# 1. filter to keep only strains that PASS the strain_filter
+# 2. Look at the genotype column, filter out any irregularities
+# 3. Make a new column (GT) that translates the genotype into "REF" or "ALT" using the function dplyr::mutate()
+# 4. Remove the genotype column (try dplyr::select())
+# 5. Group each variant by its genotype using the function dplyr::group_by()
+###### Each variant has a unique 'chrom' and 'pos' and the genotype is designated in our new column 'GT'
+# 6. Make a new column called 'num_geno' that adds the number of strains with REF or ALT using dplyr::summarize() 
+###### HINT: look at ?n()
+# 7. Spread the 'GT' column and fill with the 'num_geno' to create two columns (REF and ALT) whose values are the num_geno
+###### HINT: look at tidyr::spread()
+# 8. Make a new column called 'perc_ref' that calculates the percent of strains that have the REF genotype at each variant
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+# Plot your data!
+
+Use ggplot2 to make beautiful plots to show off all your hard work.
+
+```{r, plot_data}
+    
+# Plot a histogram of your biallelic_variants dataframe with perc_ref on the x-axis
+# HINT: use ggplot2::geom_histogram()
+
+
+
+
+# Using the same histogram as above, now facet by chromosome using ggplot2::facet_grid()
+# HINT: ~ means 'by'
+
+
+
+
+# Using the same histogram as above, try coloring the histogram by chromosome
+# HINT: add color within the aesthetics (fill = variable)
+
+
+
+
+# Assign your plot to a variable 'histogram'
+
+
+
+
+
+# Save your plot using ggplot2::ggsave()
+
+
+
+
+# OYO: Try making a scatterplot of perc_ref for each position across the genome (for each chromosome)
+# Color all points red instead of black
+# Assign your plot to a new variable, 'scatterplot'
+
+
+
+
+
+# Save your plot using ggplot2::ggsave()
+
+
+
+
+```
+
+
+# On your own plotting/analysis
+
+< Fill in what type of analysis you performed here as well as what your conclusions were from the data >
+
+```{r, on_your_own}
+
+# YOUR ANALYSIS HERE
+
+
+
+
+
+
+
+# YOUR PLOT HERE
+
+
+
+
+
+
+
+
+```
+
